@@ -12,14 +12,14 @@ time.sleep(2)
 print("❗ Cancel the program at any point by pressing Ctrl+C ❗")
 time.sleep(2)
 
-print("\n📍  Select Coordinate Configuration 📍:")
+print("\nSelect Coordinate Configuration:")
 print("1. East Uletha")
 print("2. East Uletha Minor")
 print("3. Tarephia")
 print("9. Custom Coordinates")
 print("0. Exit")
 
-choice = int(input("Selection: "))
+choice = int(input("\n> Selection: "))
 exit = False
 
 
@@ -65,7 +65,7 @@ else:
     exit = True
 
 if not exit:
-    zoom = int(input("Zoom Level: "))
+    zoom = int(input("> Zoom Level: "))
     print()
 
 
@@ -151,3 +151,10 @@ if not exit:
     print()
     print(f"Stitched map saved as {stitched_filename}!")
     print("Thank for for using the OGF Map Extracter. Made with ❤️  and ☕ by ParrotMan.")
+    print()
+
+    timeleft = 10
+    while timeleft > 0:
+        print(f"Automatically closing this window in {timeleft} seconds", end='\r')
+        time.sleep(1)
+        timeleft -= 1
