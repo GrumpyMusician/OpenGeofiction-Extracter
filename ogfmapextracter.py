@@ -58,10 +58,10 @@ elif choice == 8:
 
 
 elif choice == 9:
-    lattop = round(float(input("Uppermost Latitude: ")), 3)
-    lonleft = round(float(input("Leftmost Longitude: ")), 3)
-    latbot = round(float(input("Bottommost Latitude: ")), 3)
-    lonright = round(float(input("Rightmost Longitude: ")), 3)
+    lattop = round(float(input("Leftmost Latitude: ")), 3)
+    lonleft = round(float(input("Uppermost Longitude: ")), 3)
+    latbot = round(float(input("Rightmost Latitude: ")), 3)
+    lonright = round(float(input("Bottommost Longitude: ")), 3)
 
     bbox = {
         "lat_top": lattop,
