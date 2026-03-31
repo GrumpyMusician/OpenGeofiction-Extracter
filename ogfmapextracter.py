@@ -4,6 +4,7 @@ import time
 import requests
 from PIL import Image
 import shutil
+import random
 
 print("🗺️  Welcome to the OGF Map Extracter 🗺️")
 time.sleep(2)
@@ -16,12 +17,12 @@ print("\nSelect Coordinate Configuration:")
 print("1. East Uletha")
 print("2. East Uletha Minor")
 print("3. Tarephia")
+print("8. World")
 print("9. Custom Coordinates")
 print("0. Exit")
 
 choice = int(input("\n> Selection: "))
 exit = False
-
 
 if choice == 1:
     bbox = {
@@ -47,10 +48,19 @@ elif choice == 3:
         "lon_right": 58.8065
     }
 
+elif choice == 8:
+    bbox = {
+        "lat_top": 80.6825,
+        "lon_left": -18.1100,
+        "lat_bottom": -75.9798,
+        "lon_right": 179.8627
+    }
+
+
 elif choice == 9:
     lattop = round(float(input("Uppermost Latitude: ")), 3)
     lonleft = round(float(input("Leftmost Longitude: ")), 3)
-    latbot = round(float(input("Bottomost Latitude: ")), 3)
+    latbot = round(float(input("Bottommost Latitude: ")), 3)
     lonright = round(float(input("Rightmost Longitude: ")), 3)
 
     bbox = {
@@ -68,15 +78,21 @@ if not exit:
     zoom = int(input("> Zoom Level: "))
     print()
 
-
     downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
     output_dir = os.path.join(downloads_dir, "ogf_z8_bbox")
     stitched_filename = os.path.join(downloads_dir, "ogf_bbox_map.png")
 
-    delay = 0.1
+    request_interval = 0.25
+    next_request_time = time.time()
+
     max_retries = 5
 
     os.makedirs(output_dir, exist_ok=True)
+
+    session = requests.Session()
+    session.headers.update({
+        "User-Agent": "OGF-Extractor"
+    })
 
     def latlon_to_tile(lat, lon, z):
         lat_rad = math.radians(lat)
@@ -88,8 +104,6 @@ if not exit:
     x_min, y_max = latlon_to_tile(bbox["lat_bottom"], bbox["lon_left"], zoom)
     x_max, y_min = latlon_to_tile(bbox["lat_top"], bbox["lon_right"], zoom)
 
-    #print(f"Tile X range: {x_min} to {x_max}; Tile Y range: {y_min} to {y_max}")
-
     tiles = {}
 
     total_tiles = (x_max - x_min + 1) * (y_max - y_min + 1)
@@ -98,13 +112,21 @@ if not exit:
     for x in range(x_min, x_max + 1):
         for y in range(y_min, y_max + 1):
             path = os.path.join(output_dir, f"{x}_{y}.png")
+
             if os.path.exists(path):
                 tiles_downloaded += 1
             else:
                 for attempt in range(max_retries):
                     try:
+                        now = time.time()
+                        if now < next_request_time:
+                            time.sleep(next_request_time - now)
+
                         url = f"https://tile.opengeofiction.net/ogf-carto/{zoom}/{x}/{y}.png"
-                        r = requests.get(url, timeout=15)
+                        r = session.get(url, timeout=15)
+
+                        next_request_time += request_interval + random.uniform(-0.02, 0.02)
+
                         if r.status_code == 200:
                             with open(path, "wb") as f:
                                 f.write(r.content)
@@ -112,11 +134,14 @@ if not exit:
                             break
                         else:
                             print(f"Failed {x},{y} - status {r.status_code}")
+
                     except Exception as e:
                         print(f"Error downloading {x},{y} attempt {attempt+1} - {e}")
-                    time.sleep(delay)
+
+                    time.sleep(0.1 * (attempt + 1))
+
                 else:
-                    print(f"⚠️ Skipping {x},{y} after {max_retries} failed attempts")
+                    print(f"⚠️  Skipping {x},{y} after {max_retries} failed attempts ⚠️")
                     continue
 
             percent = (tiles_downloaded / total_tiles) * 100
@@ -133,6 +158,7 @@ if not exit:
     tile_width, tile_height = 256, 256
     map_width = (x_max - x_min + 1) * tile_width
     map_height = (y_max - y_min + 1) * tile_height
+
     stitched_map = Image.new("RGB", (map_width, map_height), (255, 255, 255))
 
     for (x, y), img in tiles.items():
