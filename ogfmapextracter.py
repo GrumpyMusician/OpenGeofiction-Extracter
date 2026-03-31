@@ -150,11 +150,11 @@ if not exit:
 
     print()
     print(f"Stitched map saved as {stitched_filename}!")
-    print("Thank for for using the OGF Map Extracter. Made with ❤️  and ☕ by ParrotMan.")
+    print("Thanks for using the OGF Map Extracter. Made with ❤️  and ☕ by ParrotMan.")
     print()
 
     timeleft = 10
     while timeleft > 0:
-        print(f"Automatically closing this window in {timeleft} seconds", end='\r')
+        print(f"Automatically closing this window in {timeleft} seconds   ", end='\r')
         time.sleep(1)
         timeleft -= 1
