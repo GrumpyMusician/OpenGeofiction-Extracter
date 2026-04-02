@@ -25,74 +25,40 @@ choice = int(input("\n> Selection: "))
 exit = False
 
 if choice == 1:
-    bbox = {
-        "lat_top": 72.548,
-        "lon_left": 63.140,
-        "lat_bottom": 23.016,
-        "lon_right": 175.702
-    }
-
+    bbox = {"lat_top": 72.548, "lon_left": 63.140, "lat_bottom": 23.016, "lon_right": 175.702}
 elif choice == 2:
-    bbox = {
-        "lat_top": 47.904,
-        "lon_left": 96.895,
-        "lat_bottom": 25.247,
-        "lon_right": 150.051
-    }
-
+    bbox = {"lat_top": 47.904, "lon_left": 96.895, "lat_bottom": 25.247, "lon_right": 150.051}
 elif choice == 3:
-    bbox = {
-        "lat_top": 35.4212,
-        "lon_left": -17.3502,
-        "lat_bottom": -26.8107,
-        "lon_right": 58.8065
-    }
-
+    bbox = {"lat_top": 35.4212, "lon_left": -17.3502, "lat_bottom": -26.8107, "lon_right": 58.8065}
 elif choice == 8:
-    bbox = {
-        "lat_top": 80.6825,
-        "lon_left": -18.1100,
-        "lat_bottom": -75.9798,
-        "lon_right": 179.8627
-    }
-
-
+    bbox = {"lat_top": 80.6825, "lon_left": -18.1100, "lat_bottom": -75.9798, "lon_right": 179.8627}
 elif choice == 9:
-    lattop = round(float(input("Leftmost Latitude: ")), 3)
-    lonleft = round(float(input("Uppermost Longitude: ")), 3)
-    latbot = round(float(input("Rightmost Latitude: ")), 3)
-    lonright = round(float(input("Bottommost Longitude: ")), 3)
-
-    bbox = {
-        "lat_top": lattop,
-        "lon_left": lonleft,
-        "lat_bottom": latbot,
-        "lon_right": lonright
-    }
-
+    lattop = round(float(input("Uppermost Latitude: ")), 3)
+    lonleft = round(float(input("Leftmost Longitude: ")), 3)
+    latbot = round(float(input("Bottommost Latitude: ")), 3)
+    lonright = round(float(input("Rightmost Longitude: ")), 3)
+    bbox = {"lat_top": lattop, "lon_left": lonleft, "lat_bottom": latbot, "lon_right": lonright}
 else:
     print("Exiting Program...")
     exit = True
 
 if not exit:
     zoom = int(input("> Zoom Level: "))
+    print("\nThe following will split up the output into smaller chunks. Enter 1 for both if you want just one image.")
+    numrows = int(input("> Number of Rows: "))
+    numcols = int(input("> Number of Columns: "))
     print()
 
     downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
     output_dir = os.path.join(downloads_dir, "ogf_z8_bbox")
-    stitched_filename = os.path.join(downloads_dir, "ogf_bbox_map.png")
+    os.makedirs(output_dir, exist_ok=True)
 
     request_interval = 0.25
     next_request_time = time.time()
-
     max_retries = 5
 
-    os.makedirs(output_dir, exist_ok=True)
-
     session = requests.Session()
-    session.headers.update({
-        "User-Agent": "OGF-Extractor"
-    })
+    session.headers.update({"User-Agent": "OGF-Extractor"})
 
     def latlon_to_tile(lat, lon, z):
         lat_rad = math.radians(lat)
@@ -105,7 +71,6 @@ if not exit:
     x_max, y_min = latlon_to_tile(bbox["lat_top"], bbox["lon_right"], zoom)
 
     tiles = {}
-
     total_tiles = (x_max - x_min + 1) * (y_max - y_min + 1)
     tiles_downloaded = 0
 
@@ -139,7 +104,6 @@ if not exit:
                         print(f"Error downloading {x},{y} attempt {attempt+1} - {e}")
 
                     time.sleep(0.1 * (attempt + 1))
-
                 else:
                     print(f"⚠️  Skipping {x},{y} after {max_retries} failed attempts ⚠️")
                     continue
@@ -153,20 +117,46 @@ if not exit:
                 except Exception as e:
                     print(f"Error opening {x},{y} - {e}")
 
-    print("\nAll available tiles downloaded. Stitching now...")
+    print("\nAll available tiles downloaded. Stitching into grid images now...")
 
     tile_width, tile_height = 256, 256
-    map_width = (x_max - x_min + 1) * tile_width
-    map_height = (y_max - y_min + 1) * tile_height
+    tiles_x_count = x_max - x_min + 1
+    tiles_y_count = y_max - y_min + 1
 
-    stitched_map = Image.new("RGB", (map_width, map_height), (255, 255, 255))
+    # Compute how many tiles per output image
+    tiles_per_chunk_x = tiles_x_count // numcols
+    tiles_per_chunk_y = tiles_y_count // numrows
 
-    for (x, y), img in tiles.items():
-        px = (x - x_min) * tile_width
-        py = (y - y_min) * tile_height
-        stitched_map.paste(img, (px, py))
+    # For remainders, we'll extend the last chunk
+    remainder_x = tiles_x_count % numcols
+    remainder_y = tiles_y_count % numrows
 
-    stitched_map.save(stitched_filename)
+    output_folder = os.path.join(downloads_dir, "ogf_grid_output")
+    os.makedirs(output_folder, exist_ok=True)
+
+    for row in range(numrows):
+        for col in range(numcols):
+            chunk_width_tiles = tiles_per_chunk_x + (1 if col == numcols - 1 and remainder_x > 0 else 0) * remainder_x
+            chunk_height_tiles = tiles_per_chunk_y + (1 if row == numrows - 1 and remainder_y > 0 else 0) * remainder_y
+
+            chunk = Image.new(
+                "RGB",
+                (chunk_width_tiles * tile_width, chunk_height_tiles * tile_height),
+                (255, 255, 255)
+            )
+
+            for dx in range(chunk_width_tiles):
+                for dy in range(chunk_height_tiles):
+                    tile_x = x_min + col * tiles_per_chunk_x + dx
+                    tile_y = y_min + row * tiles_per_chunk_y + dy
+
+                    if (tile_x, tile_y) in tiles:
+                        px = dx * tile_width
+                        py = dy * tile_height
+                        chunk.paste(tiles[(tile_x, tile_y)], (px, py))
+
+            filename = os.path.join(output_folder, f"map_r{row}_c{col}.png")
+            chunk.save(filename)
 
     try:
         shutil.rmtree(output_dir)
@@ -174,13 +164,11 @@ if not exit:
     except Exception as e:
         print(f"Could not delete temp folder: {e}")
 
-    print()
-    print(f"Stitched map saved as {stitched_filename}!")
-    print("Thanks for using the OGF Map Extracter. Made with ❤️  and ☕ by ParrotMan.")
-    print()
+    print(f"\nGrid images saved in: {output_folder}!")
+    print("Thanks for using the OGF Map Extracter. Made with ❤️  and ☕ by ParrotMan.\n")
 
     timeleft = 10
     while timeleft > 0:
-        print(f"Automatically closing this window in {timeleft} seconds   ", end='\r')
+        print(f"Automatically closing this window in {timeleft} seconds    ", end='\r')
         time.sleep(1)
         timeleft -= 1
